@@ -1,15 +1,16 @@
 #include <Arduino.h>
-#include <WiFi.h>
 #include <esp_camera.h>
-#include <WebServer.h>
-#include <ESPmDNS.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7735.h>
+#include <TJpg_Decoder.h>
+#include <Wire.h>
 
-// Access Point credentials
-const char* ap_ssid = "ESP32-CAM-AP";
-const char* ap_password = "12345678"; // Minimum 8 characters
-
-// Web server on port 80
-WebServer server(80);
+// TFT pin definitions
+#define TFT_CS   10  // Chip Select
+#define TFT_RST  9   // Reset
+#define TFT_DC   3   // Data/Command
+#define TFT_MOSI 11  // DIN (Data In)
+#define TFT_SCLK 12  // CLK (Clock)
 
 // Camera pin configuration
 #define PWDN_GPIO_NUM    -1
@@ -29,44 +30,62 @@ WebServer server(80);
 #define HREF_GPIO_NUM    44
 #define PCLK_GPIO_NUM    15
 
-// Handler for MJPEG streaming
-void handle_stream() {
-  WiFiClient client = server.client();
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: multipart/x-mixed-replace; boundary=frame");
-  client.println();
+// Initialize TFT
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
 
-  while (client.connected()) {
-    camera_fb_t * fb = esp_camera_fb_get();
-    if (!fb) {
-      Serial.println("Camera capture failed");
-      break;
+// JPEG decoder callback function
+bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* data) {
+  for (uint16_t j = 0; j < h && y + j < 160; j++) {
+    for (uint16_t i = 0; i < w && x + i < 128; i++) {
+      tft.drawPixel(x + i, y + j, data[j * w + i]);
     }
-    client.print("--frame\r\n");
-    client.print("Content-Type: image/jpeg\r\n\r\n");
-    client.write((char *)fb->buf, fb->len);
-    client.print("\r\n");
-    esp_camera_fb_return(fb);
-    delay(50); // Adjust for frame rate
   }
-}
-
-// Handler for root URL (/)
-void handle_root() {
-  String html = "<!DOCTYPE html><html><head><title>ESP32-S3 Camera</title></head>";
-  html += "<body><h1>ESP32-S3 Camera Stream</h1>";
-  html += "<p><a href=\"/stream\">View Camera Stream</a></p>";
-  html += "<p>Connect to Wi-Fi: " + String(ap_ssid) + "</p>";
-  html += "<p>Access via: <a href=\"http://esp32cam.local/stream\">http://esp32cam.local/stream</a></p>";
-  html += "</body></html>";
-  server.send(200, "text/html", html);
+  return true;
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
+  Serial.println("Starting setup...");
 
-  // Camera configuration
+  // Test TFT
+  tft.initR(INITR_REDTAB); // Try INITR_GREENTAB or INITR_BLACKTAB if colors off
+  tft.setRotation(2); // Adjust rotation (0-3)
+  tft.fillScreen(ST7735_BLACK);
+  tft.setTextColor(ST7735_WHITE, ST7735_BLACK);
+  tft.setTextSize(1);
+  tft.setCursor(0, 0);
+  tft.println("TFT Initialized");
+  tft.println("Testing display...");
+  delay(1000);
+
+  // Draw test pattern
+  tft.fillScreen(ST7735_BLACK);
+  tft.drawRect(0, 0, 128, 160, ST7735_RED);
+  tft.drawLine(0, 0, 127, 159, ST7735_GREEN);
+  tft.drawLine(0, 159, 127, 0, ST7735_BLUE);
+  tft.setCursor(10, 70);
+  tft.println("TFT Test OK");
+  delay(2000);
+  tft.fillScreen(ST7735_BLACK);
+
+  // Check I2C with retries
+  // if (!checkI2C()) {
+  //   Serial.println("OV2640 NOT detected on I2C");
+  //   tft.fillScreen(ST7735_RED);
+  //   tft.setCursor(0, 0);
+  //   tft.println("OV2640 I2C fail");
+  //   delay(5000);
+  //   return;
+  // }
+  // Serial.println("OV2640 detected on I2C");
+  // tft.println("OV2640 I2C OK");
+  // delay(1000);
+  // tft.fillScreen(ST7735_BLACK);
+  // tft.setCursor(0, 0);
+  // tft.println("Initializing camera...");
+
+  // Camera configuration (from working Wi-Fi code)
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -86,45 +105,71 @@ void setup() {
   config.pin_sccb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 10000000; // 10 MHz
+  config.xclk_freq_hz = 20000000; // 10 MHz
   config.frame_size = FRAMESIZE_QVGA; // 320x240
   config.pixel_format = PIXFORMAT_JPEG;
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-  config.fb_location = CAMERA_FB_IN_DRAM; // Use DRAM
-  config.jpeg_quality = 20; // Lower quality
+  // config.fb_location = CAMERA_FB_IN_DRAM; // Use DRAM
+  config.fb_location = CAMERA_FB_IN_PSRAM;
+  config.jpeg_quality = 30; // Lower quality
   config.fb_count = 1;
 
   // Initialize camera
+  Serial.println("Initializing camera...");
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x\n", err);
+    tft.fillScreen(ST7735_RED);
+    tft.setCursor(0, 0);
+    tft.printf("Camera init failed: 0x%x", err);
     return;
   }
   Serial.println("Camera initialized successfully!");
 
-  // Set up Access Point
-  WiFi.softAP(ap_ssid, ap_password);
-  IPAddress myIP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(myIP);
+  sensor_t *s = esp_camera_sensor_get();
+  s->set_hmirror(s, 1); // No horizontal flip (0=disable, 1=enable)
+  s->set_vflip(s, 0); // No vertical flip (0=disable, 1=enable)
 
-  // Set up mDNS
-  if (!MDNS.begin("esp32cam")) {
-    Serial.println("Error starting mDNS");
-    return;
-  }
-  Serial.println("mDNS started: http://esp32cam.local");
+  tft.fillScreen(ST7735_GREEN);
+  tft.setCursor(0, 0);
+  tft.println("Camera initialized!");
+  delay(2000);
+  tft.fillScreen(ST7735_BLACK);
 
-  // Set up web server routes
-  server.on("/", handle_root); // Handle root URL
-  server.on("/stream", handle_stream); // Handle stream URL
-  server.onNotFound([]() {
-    server.send(404, "text/plain", "Not found");
-  });
-  server.begin();
-  Serial.println("HTTP server started");
+  // Initialize JPEG decoder
+  TJpgDec.setJpgScale(2); // Scale 320x240 to ~160x120
+  TJpgDec.setCallback(tft_output);
+  Serial.println("JPEG decoder initialized");
 }
 
 void loop() {
-  server.handleClient();
+  static uint32_t frame_count = 0;
+  static uint32_t last_time = 0;
+
+  // Capture frame
+  camera_fb_t *fb = esp_camera_fb_get();
+  if (!fb) {
+    tft.fillScreen(ST7735_RED);
+    tft.setCursor(0, 0);
+    tft.println("Capture failed");
+    delay(1000);
+    tft.fillScreen(ST7735_BLACK);
+    return;
+  }
+
+  // Decode and display JPEG
+  if (fb->len > 0) {
+    TJpgDec.drawJpg(0, 0, fb->buf, fb->len); // Draw at (0,0)
+  }
+
+  // Return frame buffer
+  esp_camera_fb_return(fb);
+
+  // Calculate FPS
+  frame_count++;
+  if (millis() - last_time >= 1000) {
+    Serial.printf("FPS: %u\n", frame_count);
+    frame_count = 0;
+    last_time = millis();
+  }
 }
