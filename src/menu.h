@@ -8,6 +8,7 @@
 // Menu options
 enum MenuOption {
     MENU_CAMERA = 0,
+    MENU_PHOTOS,
     MENU_OBJECT_DETECTION,
     MENU_AI_ASSISTANT, 
     MENU_GAME,
@@ -18,6 +19,7 @@ enum MenuOption {
 enum AppMode {
     MODE_MENU = 0,
     MODE_CAMERA,
+    MODE_PHOTOS,
     MODE_OBJECT_DETECTION,
     MODE_AI_ASSISTANT,
     MODE_GAME,

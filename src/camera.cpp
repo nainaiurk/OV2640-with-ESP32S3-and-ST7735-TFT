@@ -1,6 +1,12 @@
 #include "camera.h"
 #include "camera_pin.h"
+#include "sd_card.h"
 #include <Arduino.h>
+
+// Global variable to store last captured frame
+static camera_fb_t* last_captured_frame = nullptr;
+static uint8_t* captured_frame_buffer = nullptr;
+static size_t captured_frame_size = 0;
 
 bool camera_init() {
     camera_config_t config;
@@ -88,5 +94,77 @@ camera_fb_t* camera_get_frame() {
 void camera_return_frame(camera_fb_t* fb) {
     if (fb) {
         esp_camera_fb_return(fb);
+    }
+}
+
+bool camera_capture_and_save() {
+    // Get a frame for saving
+    camera_fb_t *fb = esp_camera_fb_get();
+    if (!fb) {
+        Serial.println("Camera capture failed");
+        return false;
+    }
+    
+    // Free previous capture if exists
+    if (captured_frame_buffer) {
+        free(captured_frame_buffer);
+        captured_frame_buffer = nullptr;
+    }
+    
+    // Allocate memory for the captured frame
+    captured_frame_size = fb->len;
+    captured_frame_buffer = (uint8_t*)malloc(captured_frame_size);
+    
+    if (!captured_frame_buffer) {
+        Serial.println("Failed to allocate memory for captured frame");
+        esp_camera_fb_return(fb);
+        return false;
+    }
+    
+    // Copy the frame data
+    memcpy(captured_frame_buffer, fb->buf, captured_frame_size);
+    
+    // Create a static frame buffer structure for the captured frame
+    static camera_fb_t captured_fb;
+    captured_fb.buf = captured_frame_buffer;
+    captured_fb.len = captured_frame_size;
+    captured_fb.width = fb->width;
+    captured_fb.height = fb->height;
+    captured_fb.format = fb->format;
+    captured_fb.timestamp = fb->timestamp;
+    
+    last_captured_frame = &captured_fb;
+    
+    Serial.printf("Image captured! Size: %dx%d, JPEG bytes: %d\n", 
+                  fb->width, fb->height, fb->len);
+    
+    // Try to save to SD card (non-blocking, continue even if it fails)
+    if (sd_card_is_mounted()) {
+        if (save_photo_to_sd(captured_frame_buffer, captured_frame_size)) {
+            Serial.println("Photo saved to SD card successfully!");
+        } else {
+            Serial.println("Failed to save photo to SD card");
+        }
+    } else {
+        Serial.println("SD card not available - photo saved in memory only");
+    }
+    
+    // Return the original frame buffer
+    esp_camera_fb_return(fb);
+    
+    Serial.println("Image capture complete!");
+    return true;
+}
+
+camera_fb_t* camera_get_last_capture() {
+    return last_captured_frame;
+}
+
+void camera_release_last_capture() {
+    if (captured_frame_buffer) {
+        free(captured_frame_buffer);
+        captured_frame_buffer = nullptr;
+        captured_frame_size = 0;
+        last_captured_frame = nullptr;
     }
 }

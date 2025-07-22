@@ -50,18 +50,72 @@ void display_init() {
     Serial.println("1.8\" ST7735 display initialized with full black coverage");
 }
 
-// JPEG decoder callback function - QVGA (320x240) to ST7735 (128x160) with clean scaling
+// JPEG decoder callback function - QVGA (320x240) to ST7735 (128x140) with clean scaling
+// Limited to upper 140 pixels to leave space for buttons
 bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* data) {
     // Safety checks
     if (!data || w == 0 || h == 0) return true;
     
+    // Check if we're drawing a thumbnail (from photos_mode)
+    extern bool is_drawing_thumbnail;
+    extern int thumbnail_x, thumbnail_y, thumbnail_w, thumbnail_h;
+    
+    if (is_drawing_thumbnail) {
+        // For thumbnails, we need to map the decoded JPEG coordinates to thumbnail position
+        // The JPEG decoder gives us coordinates relative to the original image
+        // We need to scale and offset them to fit in our thumbnail area
+        
+        int16_t dest_x = thumbnail_x + x;
+        int16_t dest_y = thumbnail_y + y;
+        uint16_t dest_w = w;
+        uint16_t dest_h = h;
+        
+        // Clip to thumbnail boundaries
+        if (dest_x < thumbnail_x) {
+            int clip = thumbnail_x - dest_x;
+            dest_w -= clip;
+            data += clip; // Skip clipped pixels
+            dest_x = thumbnail_x;
+        }
+        if (dest_y < thumbnail_y) {
+            int clip = thumbnail_y - dest_y;
+            dest_h -= clip;
+            data += clip * w; // Skip clipped rows
+            dest_y = thumbnail_y;
+        }
+        if (dest_x + dest_w > thumbnail_x + thumbnail_w) {
+            dest_w = thumbnail_x + thumbnail_w - dest_x;
+        }
+        if (dest_y + dest_h > thumbnail_y + thumbnail_h) {
+            dest_h = thumbnail_y + thumbnail_h - dest_y;
+        }
+        
+        // Only draw if there's something to draw
+        if (dest_w > 0 && dest_h > 0) {
+            tft.startWrite();
+            tft.setAddrWindow(dest_x, dest_y, dest_w, dest_h);
+            
+            // Copy pixels directly from the decoded JPEG data
+            for (int row = 0; row < dest_h; row++) {
+                for (int col = 0; col < dest_w; col++) {
+                    if ((row * w + col) < (w * h)) {
+                        tft.pushColor(data[row * w + col]);
+                    }
+                }
+            }
+            tft.endWrite();
+        }
+        return true;
+    }
+    
+    // Original camera display logic
     // Use integer scaling to avoid grid artifacts
     // Scale down by taking every 2nd or 3rd pixel consistently
     int16_t display_x = x >> 1; // Divide by 2 (bit shift)
     int16_t display_y = y >> 1; // Divide by 2 (bit shift)
     
-    // Only draw if within display bounds
-    if (display_x >= 128 || display_y >= 160) {
+    // Only draw if within display bounds and above button area (y < 140)
+    if (display_x >= 128 || display_y >= 140) {
         return true;
     }
     
@@ -69,9 +123,9 @@ bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* data) {
     uint16_t display_w = w >> 1; // Divide by 2
     uint16_t display_h = h >> 1; // Divide by 2
     
-    // Bounds check
+    // Bounds check - limit to camera display area (140 pixels height)
     if (display_x + display_w > 128) display_w = 128 - display_x;
-    if (display_y + display_h > 160) display_h = 160 - display_y;
+    if (display_y + display_h > 140) display_h = 140 - display_y;
     
     if (display_w == 0 || display_h == 0) return true;
     

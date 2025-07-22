@@ -5,6 +5,8 @@
 #include "button.h"
 #include "camera_mode.h"
 #include "game_controller.h"
+#include "sd_card.h"
+#include "photos_mode.h"
 #include <TJpg_Decoder.h>
 
 // Global camera availability flag
@@ -50,6 +52,20 @@ void app_init() {
     TJpgDec.setJpgScale(1);
     TJpgDec.setCallback(tft_output);
     
+    // Initialize SD card for photo storage
+    Serial.println("=== SD CARD INITIALIZATION ===");
+    sd_card_test_pins(); // Test pin connectivity first
+    
+    if (sd_card_init()) {
+        Serial.println("SD card initialized successfully");
+        sd_card_debug_info(); // Show detailed info
+    } else {
+        Serial.println("SD card initialization failed! Running diagnostics...");
+        sd_card_test_connection();
+        sd_card_debug_info();
+        Serial.println("Photos mode will show error message.");
+    }
+    
     Serial.println("System ready - Menu mode active");
 }
 
@@ -61,6 +77,10 @@ void app_handle_mode() {
             
         case MODE_CAMERA:
             handle_camera_mode();
+            break;
+            
+        case MODE_PHOTOS:
+            handle_photos_mode();
             break;
             
         case MODE_OBJECT_DETECTION:
@@ -83,6 +103,30 @@ void app_handle_mode() {
 }
 
 void handle_menu_mode() {
+    // Debug trigger: Hold UP + DOWN + SELECT for 2 seconds
+    static unsigned long debug_hold_start = 0;
+    bool up_button_current = button_pressed(BTN_UP);
+    bool down_button_current = button_pressed(BTN_DOWN);
+    bool select_button_current = button_pressed(BTN_SELECT);
+    
+    if (up_button_current && down_button_current && select_button_current) {
+        if (debug_hold_start == 0) {
+            debug_hold_start = millis();
+            Serial.println("Debug trigger detected - hold for 2 seconds...");
+        } else if (millis() - debug_hold_start > 2000) {
+            Serial.println("\n=== MANUAL SD CARD DEBUG TRIGGERED ===");
+            sd_card_debug_info();
+            sd_card_test_pins();
+            sd_card_test_connection();
+            Serial.println("=== DEBUG COMPLETE ===\n");
+            debug_hold_start = 0; // Reset
+            return; // Skip menu processing this cycle
+        }
+    } else {
+        debug_hold_start = 0; // Reset if not all buttons pressed
+    }
+    
+    // Normal menu processing
     MenuOption selection = handle_menu_input();
     if (selection != (MenuOption)-1) {
         // User made a selection, switch modes with correct mapping
@@ -90,6 +134,9 @@ void handle_menu_mode() {
         switch(selection) {
             case MENU_CAMERA:
                 targetMode = MODE_CAMERA;
+                break;
+            case MENU_PHOTOS:  // Add Photos case
+                targetMode = MODE_PHOTOS;
                 break;
             case MENU_OBJECT_DETECTION:
                 targetMode = MODE_OBJECT_DETECTION;

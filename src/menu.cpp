@@ -1,6 +1,8 @@
 #include "menu.h"
 #include "display.h"
 #include "button.h"
+#include "sd_card.h"
+#include "photos_mode.h"
 
 // Global variables
 AppMode currentMode = MODE_MENU;
@@ -10,6 +12,7 @@ GameOption selectedGame = GAME_SNAKE;
 // Menu option names
 const char* menuOptions[] = {
     "Camera",
+    "Photos",
     "Object Detection", 
     "AI Assistant",
     "Game"
@@ -80,24 +83,6 @@ void display_menu() {
     if (remainingY < height) {
         tft.fillRect(0, remainingY, width, height - remainingY, ST7735_BLACK);
     }
-    
-    // Draw instructions at bottom in smaller font - centered and higher
-    tft.setTextColor(ST7735_YELLOW, ST7735_BLACK);
-    tft.setTextSize(1); // Small font for instructions
-    
-    // Center "<-- Up/Down" horizontally
-    String upDownText = "<-- Up/Down";
-    int textWidth1 = upDownText.length() * 6; // Each character is ~6 pixels wide in size 1
-    int centerX1 = (width - textWidth1) / 2;
-    tft.setCursor(centerX1, height - 25);
-    tft.print(upDownText);
-    
-    // Center "Select/Back-->" horizontally  
-    String selectBackText = "Select/Back-->";
-    int textWidth2 = selectBackText.length() * 6;
-    int centerX2 = (width - textWidth2) / 2;
-    tft.setCursor(centerX2, height - 15);
-    tft.print(selectBackText);
 }
 
 void display_game_menu() {
@@ -143,10 +128,6 @@ void display_game_menu() {
     if (remainingY < height) {
         tft.fillRect(0, remainingY, width, height - remainingY, ST7735_BLACK);
     }
-    
-    // Draw instructions at bottom - removed for cleaner UI
-    tft.setTextColor(ST7735_YELLOW, ST7735_BLACK);
-    tft.setTextSize(1);
 }
 
 // Update only the game menu selection (smooth navigation without flicker)
@@ -228,11 +209,21 @@ MenuOption handle_menu_input() {
         tft.fillRect(0, 0, 128, 160, ST7735_BLACK); // Ensure full coverage
         
         tft.setTextColor(ST7735_GREEN, ST7735_BLACK);
-        tft.setTextSize(2);
-        tft.setCursor(15, 60);
-        tft.print("Starting");
-        tft.setCursor(10, 85);
-        tft.print(menuOptions[selectedOption]);
+        tft.setTextSize(1); // Reduced from size 2 to size 1 for better fit
+        
+        // Center "Starting" text
+        String startingText = "Starting";
+        int startingWidth = startingText.length() * 6;
+        int startingX = (tft.width() - startingWidth) / 2;
+        tft.setCursor(startingX, 60);
+        tft.print(startingText);
+        
+        // Center the mode name
+        String modeName = String(menuOptions[selectedOption]);
+        int modeWidth = modeName.length() * 6;
+        int modeX = (tft.width() - modeWidth) / 2;
+        tft.setCursor(modeX, 85);
+        tft.print(modeName);
         
         delay(1500); // Show message briefly
         
@@ -262,11 +253,21 @@ GameOption handle_game_menu_input() {
         // Show loading screen
         tft.fillScreen(ST7735_BLACK);
         tft.setTextColor(ST7735_GREEN, ST7735_BLACK);
-        tft.setTextSize(2);
-        tft.setCursor(15, 60);
-        tft.print("Starting");
-        tft.setCursor(10, 85);
-        tft.print(gameOptions[selectedGame]);
+        tft.setTextSize(1); // Reduced from size 2 to size 1 for better fit
+        
+        // Center "Starting" text
+        String startingText = "Starting";
+        int startingWidth = startingText.length() * 6;
+        int startingX = (tft.width() - startingWidth) / 2;
+        tft.setCursor(startingX, 60);
+        tft.print(startingText);
+        
+        // Center the game name
+        String gameName = String(gameOptions[selectedGame]);
+        int gameWidth = gameName.length() * 6;
+        int gameX = (tft.width() - gameWidth) / 2;
+        tft.setCursor(gameX, 85);
+        tft.print(gameName);
         
         delay(1500);
         
@@ -290,31 +291,61 @@ void run_selected_mode(AppMode mode) {
             Serial.println("Camera mode activated");
             break;
             
+        case MODE_PHOTOS:
+            currentMode = MODE_PHOTOS;
+            photos_mode_init();
+            Serial.println("Photos mode activated");
+            break;
+            
         case MODE_OBJECT_DETECTION:
+        {
             currentMode = MODE_OBJECT_DETECTION;
             tft.fillScreen(ST7735_BLACK);
             tft.fillRect(0, 0, 128, 160, ST7735_BLACK); // Full coverage
             tft.setTextColor(ST7735_RED, ST7735_BLACK);
             tft.setTextSize(1);
-            tft.setCursor(15, 70);
-            tft.print("Object Detection");
-            tft.setCursor(25, 90);
-            tft.print("Coming Soon!");
+            
+            // Center "Object Detection" text
+            String objDetText = "Object Detection";
+            int objDetWidth = objDetText.length() * 6;
+            int objDetX = (tft.width() - objDetWidth) / 2;
+            tft.setCursor(objDetX, 70);
+            tft.print(objDetText);
+            
+            // Center "Coming Soon!" text
+            String comingSoonText = "Coming Soon!";
+            int comingSoonWidth = comingSoonText.length() * 6;
+            int comingSoonX = (tft.width() - comingSoonWidth) / 2;
+            tft.setCursor(comingSoonX, 90);
+            tft.print(comingSoonText);
             Serial.println("Object Detection mode (placeholder)");
             break;
+        }
             
         case MODE_AI_ASSISTANT:
+        {
             currentMode = MODE_AI_ASSISTANT;
             tft.fillScreen(ST7735_BLACK);
             tft.fillRect(0, 0, 128, 160, ST7735_BLACK); // Full coverage
             tft.setTextColor(ST7735_MAGENTA, ST7735_BLACK);
             tft.setTextSize(1);
-            tft.setCursor(20, 70);
-            tft.print("AI Assistant");
-            tft.setCursor(25, 90);
-            tft.print("Coming Soon!");
+            
+            // Center "AI Assistant" text
+            String aiAssistText = "AI Assistant";
+            int aiAssistWidth = aiAssistText.length() * 6;
+            int aiAssistX = (tft.width() - aiAssistWidth) / 2;
+            tft.setCursor(aiAssistX, 70);
+            tft.print(aiAssistText);
+            
+            // Center "Coming Soon!" text
+            String comingSoonText2 = "Coming Soon!";
+            int comingSoonWidth2 = comingSoonText2.length() * 6;
+            int comingSoonX2 = (tft.width() - comingSoonWidth2) / 2;
+            tft.setCursor(comingSoonX2, 90);
+            tft.print(comingSoonText2);
             Serial.println("AI Assistant mode (placeholder)");
             break;
+        }
             
         case MODE_GAME:
             currentMode = MODE_GAME_MENU;
