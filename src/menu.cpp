@@ -3,6 +3,7 @@
 #include "button.h"
 #include "sd_card.h"
 #include "photos_mode.h"
+#include "ai_assistant_mode.h"
 
 // Global variables
 AppMode currentMode = MODE_MENU;
@@ -13,6 +14,7 @@ GameOption selectedGame = GAME_SNAKE;
 const char* menuOptions[] = {
     "Camera",
     "Photos",
+    "Face Recognition",
     "Object Detection", 
     "AI Assistant",
     "Game"
@@ -325,25 +327,7 @@ void run_selected_mode(AppMode mode) {
         case MODE_AI_ASSISTANT:
         {
             currentMode = MODE_AI_ASSISTANT;
-            tft.fillScreen(ST7735_BLACK);
-            tft.fillRect(0, 0, 128, 160, ST7735_BLACK); // Full coverage
-            tft.setTextColor(ST7735_MAGENTA, ST7735_BLACK);
-            tft.setTextSize(1);
-            
-            // Center "AI Assistant" text
-            String aiAssistText = "AI Assistant";
-            int aiAssistWidth = aiAssistText.length() * 6;
-            int aiAssistX = (tft.width() - aiAssistWidth) / 2;
-            tft.setCursor(aiAssistX, 70);
-            tft.print(aiAssistText);
-            
-            // Center "Coming Soon!" text
-            String comingSoonText2 = "Coming Soon!";
-            int comingSoonWidth2 = comingSoonText2.length() * 6;
-            int comingSoonX2 = (tft.width() - comingSoonWidth2) / 2;
-            tft.setCursor(comingSoonX2, 90);
-            tft.print(comingSoonText2);
-            Serial.println("AI Assistant mode (placeholder)");
+            Serial.println("Entering mode: AI Assistant");
             break;
         }
             

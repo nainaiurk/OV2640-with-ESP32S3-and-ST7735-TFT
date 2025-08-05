@@ -11,6 +11,9 @@ void app_handle_mode();
 // Mode-specific handlers
 void handle_menu_mode();
 void handle_camera_mode();
+void handle_face_recognition_menu_mode();
+void handle_face_enroll_mode();
+void handle_face_recognize_mode();
 void handle_object_detection_mode();
 void handle_ai_assistant_mode();
 void handle_game_menu_mode();

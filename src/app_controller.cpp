@@ -7,6 +7,8 @@
 #include "game_controller.h"
 #include "sd_card.h"
 #include "photos_mode.h"
+#include "face_recognition.h"
+#include "ai_assistant_mode.h"
 #include <TJpg_Decoder.h>
 
 // Global camera availability flag
@@ -67,6 +69,9 @@ void app_init() {
     }
     
     Serial.println("System ready - Menu mode active");
+    
+    // Initialize AI Assistant (but don't activate it yet)
+    ai_assistant_init();
 }
 
 void app_handle_mode() {
@@ -83,9 +88,21 @@ void app_handle_mode() {
             handle_photos_mode();
             break;
             
+        case MODE_FACE_RECOGNITION_MENU:
+            handle_face_recognition_menu_mode();
+            break;
+            
+        case MODE_FACE_ENROLL:
+            handle_face_enroll_mode();
+            break;
+            
+        case MODE_FACE_RECOGNIZE:
+            handle_face_recognize_mode();
+            break;
+            
         case MODE_OBJECT_DETECTION:
         case MODE_AI_ASSISTANT:
-            handle_object_detection_mode();
+            handle_ai_assistant_mode();
             break;
             
         case MODE_GAME_MENU:
@@ -138,6 +155,9 @@ void handle_menu_mode() {
             case MENU_PHOTOS:  // Add Photos case
                 targetMode = MODE_PHOTOS;
                 break;
+            case MENU_FACE_RECOGNITION:
+                targetMode = MODE_FACE_RECOGNITION_MENU;
+                break;
             case MENU_OBJECT_DETECTION:
                 targetMode = MODE_OBJECT_DETECTION;
                 break;
@@ -167,7 +187,20 @@ void handle_object_detection_mode() {
 }
 
 void handle_ai_assistant_mode() {
-    handle_object_detection_mode(); // Same behavior for now
+    // Initialize AI Assistant when first entering
+    static bool ai_initialized = false;
+    if (!ai_initialized) {
+        ai_assistant_enter();
+        ai_initialized = true;
+    }
+    
+    // Update AI Assistant
+    ai_assistant_update();
+    
+    // Reset initialization flag when leaving mode
+    if (currentMode != MODE_AI_ASSISTANT) {
+        ai_initialized = false;
+    }
 }
 
 void handle_game_menu_mode() {
@@ -197,4 +230,47 @@ void handle_game_menu_mode() {
         }
         run_selected_game(targetGameMode);
     }
+}
+
+void handle_face_recognition_menu_mode() {
+    FaceRecognitionMenuOption selection = handle_face_recognition_menu_input();
+    if (selection != (FaceRecognitionMenuOption)-1) {
+        AppMode targetMode;
+        switch(selection) {
+            case FACE_MENU_ENROLL:
+                targetMode = MODE_FACE_ENROLL;
+                break;
+            case FACE_MENU_RECOGNIZE:
+                targetMode = MODE_FACE_RECOGNIZE;
+                break;
+            case FACE_MENU_VIEW_DATABASE:
+                // For now, just show the database info on the current screen
+                show_face_database_info();
+                return; // Stay in face menu mode
+            case FACE_MENU_DELETE_ALL:
+                // Show confirmation and delete if confirmed
+                if (confirm_delete_all_faces()) {
+                    delete_all_faces();
+                }
+                return; // Stay in face menu mode
+            case FACE_MENU_BACK:
+            default:
+                targetMode = MODE_MENU;
+                break;
+        }
+        currentMode = targetMode;
+        if (targetMode == MODE_MENU) {
+            display_menu();
+        } else {
+            display_face_recognition_screen(targetMode);
+        }
+    }
+}
+
+void handle_face_enroll_mode() {
+    handle_face_enrollment();
+}
+
+void handle_face_recognize_mode() {
+    handle_face_recognition();
 }
