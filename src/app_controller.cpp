@@ -15,10 +15,16 @@
 extern bool cameraAvailable;
 
 void app_init() {
+    delay(1000); // Allow time for serial monitor to connect
     Serial.begin(115200);
     
     // Initialize display first
     display_init();
+    // Initialize button system for welcome screen interaction
+    button_init();
+    
+    // Show awesome project welcome screen
+    show_project_welcome_screen();
     
     // Initialize menu system
     menu_init();
@@ -273,4 +279,85 @@ void handle_face_enroll_mode() {
 
 void handle_face_recognize_mode() {
     handle_face_recognition();
+}
+
+// ===============================================================
+// 🌟 ESP32-S3 NEXUS MULTIMEDIA SYSTEM - STATIC WELCOME SCREEN 🌟
+// ===============================================================
+
+void show_project_welcome_screen() {
+    Serial.println("🚀 Starting CogniVision Pro Welcome Screen...");
+    
+    // Clear screen and set up static welcome display
+    tft.fillScreen(ST7735_BLACK);
+    
+    // Draw static background with simple gradient
+    for(int y = 0; y < 160; y++) {
+        int intensity = 20 + (y / 8);
+        uint16_t bgColor = tft.color565(intensity/3, intensity/4, intensity/2);
+        tft.drawFastHLine(0, y, 128, bgColor);
+    }
+    
+    // Main project title - centered
+    tft.setTextColor(ST7735_WHITE);
+    tft.setTextSize(1);
+    tft.setCursor(30, 15);  // Centered for smaller font
+    tft.print("CogniVision");
+    
+    // Subtitle - centered
+    tft.setTextColor(ST7735_CYAN);
+    tft.setTextSize(1);
+    tft.setCursor(55, 28);  // Centered for "PRO"
+    tft.print("PRO");
+    
+    // Draw simple tech logo/icon
+    int centerX = 64;
+    int centerY = 80;  // Moved to center of screen
+    
+    // Central core
+    tft.fillCircle(centerX, centerY, 8, ST7735_CYAN);
+    tft.drawCircle(centerX, centerY, 10, ST7735_WHITE);
+    
+    // Static orbital elements
+    for(int i = 0; i < 6; i++) {
+        float angle = i * PI / 3;
+        int px = centerX + cos(angle) * 15;
+        int py = centerY + sin(angle) * 15;
+        uint16_t orbitalColor = (i % 2 == 0) ? ST7735_MAGENTA : ST7735_YELLOW;
+        tft.fillCircle(px, py, 2, orbitalColor);
+    }
+    
+    // Static rings
+    tft.drawCircle(centerX, centerY, 18, ST7735_GREEN);
+    tft.drawCircle(centerX, centerY, 22, ST7735_BLUE);
+    
+    // Static prompt message - centered
+    tft.setTextColor(ST7735_YELLOW);
+    tft.setCursor(15, 130);
+    tft.print("Press any button");
+    tft.setCursor(30, 140);
+    tft.print("to continue");
+    
+    // Wait in loop until button is pressed
+    Serial.println("💤 Waiting for button press to continue...");
+    
+    while(true) {
+        // Check for any button press
+        if(button_pressed(BTN_UP) || button_pressed(BTN_DOWN) || 
+           button_pressed(BTN_SELECT) || button_pressed(BTN_BACK)) {
+            
+            // Brief acknowledgment flash
+            tft.fillScreen(ST7735_WHITE);
+            delay(100);
+            tft.fillScreen(ST7735_BLACK);
+            delay(100);
+            
+            Serial.println("🎯 Button pressed - Exiting welcome screen");
+            break;
+        }
+        
+        delay(50); // Small delay to prevent excessive CPU usage
+    }
+    
+    Serial.println("✨ CogniVision Pro Welcome Complete - Initializing modules...");
 }

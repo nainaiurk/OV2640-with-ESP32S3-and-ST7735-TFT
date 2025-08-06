@@ -7,6 +7,7 @@
 // Function declarations
 void app_init();
 void app_handle_mode();
+void show_project_welcome_screen(); // Project-wide welcome screen
 
 // Mode-specific handlers
 void handle_menu_mode();

@@ -9,6 +9,8 @@
 AppMode currentMode = MODE_MENU;
 MenuOption selectedOption = MENU_CAMERA;
 GameOption selectedGame = GAME_SNAKE;
+int menuScrollOffset = 0;       // Scroll offset for main menu
+int gameScrollOffset = 0;       // Scroll offset for game menu
 
 // Menu option names
 const char* menuOptions[] = {
@@ -56,17 +58,29 @@ void display_menu() {
     tft.setCursor((width - 60) / 2, 15); // Center the "MENU" text
     tft.print("MENU");
     
-    // Draw menu options with full background coverage using actual dimensions
+    // Calculate scroll bounds
+    int maxScroll = max(0, MENU_COUNT - VISIBLE_MENU_ITEMS);
+    menuScrollOffset = constrain(menuScrollOffset, 0, maxScroll);
+    
+    // Auto-scroll to keep selected item visible
+    if (selectedOption < menuScrollOffset) {
+        menuScrollOffset = selectedOption;
+    } else if (selectedOption >= menuScrollOffset + VISIBLE_MENU_ITEMS) {
+        menuScrollOffset = selectedOption - VISIBLE_MENU_ITEMS + 1;
+    }
+    
+    // Draw visible menu options with scrolling
     tft.setTextSize(1);
     
-    for (int i = 0; i < MENU_COUNT; i++) {
+    for (int i = 0; i < VISIBLE_MENU_ITEMS && (i + menuScrollOffset) < MENU_COUNT; i++) {
+        int menuIndex = i + menuScrollOffset;
         int y = 45 + (i * 22);
         
         // Clear the entire line first using actual width
         tft.fillRect(0, y-3, width, 20, ST7735_BLACK);
         
         // Highlight selected option
-        if (i == selectedOption) {
+        if (menuIndex == selectedOption) {
             tft.fillRect(2, y-2, width-4, 18, ST7735_BLUE);
             tft.setTextColor(ST7735_WHITE, ST7735_BLUE);
             tft.setCursor(8, y);
@@ -77,11 +91,11 @@ void display_menu() {
             tft.print("  ");
         }
         
-        tft.print(menuOptions[i]);
+        tft.print(menuOptions[menuIndex]);
     }
     
     // Fill any remaining screen area with black using actual dimensions
-    int remainingY = 45 + (MENU_COUNT * 22);
+    int remainingY = 45 + (VISIBLE_MENU_ITEMS * 22);
     if (remainingY < height) {
         tft.fillRect(0, remainingY, width, height - remainingY, ST7735_BLACK);
     }
@@ -101,17 +115,29 @@ void display_game_menu() {
     tft.setCursor((width - 60) / 2, 15); // Center the "GAMES" text
     tft.print("GAMES");
     
-    // Draw game options
+    // Calculate scroll bounds
+    int maxScroll = max(0, GAME_COUNT - VISIBLE_GAME_ITEMS);
+    gameScrollOffset = constrain(gameScrollOffset, 0, maxScroll);
+    
+    // Auto-scroll to keep selected item visible
+    if (selectedGame < gameScrollOffset) {
+        gameScrollOffset = selectedGame;
+    } else if (selectedGame >= gameScrollOffset + VISIBLE_GAME_ITEMS) {
+        gameScrollOffset = selectedGame - VISIBLE_GAME_ITEMS + 1;
+    }
+    
+    // Draw visible game options with scrolling
     tft.setTextSize(1);
     
-    for (int i = 0; i < GAME_COUNT; i++) {
+    for (int i = 0; i < VISIBLE_GAME_ITEMS && (i + gameScrollOffset) < GAME_COUNT; i++) {
+        int gameIndex = i + gameScrollOffset;
         int y = 45 + (i * 22);
         
         // Clear the entire line first
         tft.fillRect(0, y-3, width, 20, ST7735_BLACK);
         
         // Highlight selected option
-        if (i == selectedGame) {
+        if (gameIndex == selectedGame) {
             tft.fillRect(2, y-2, width-4, 18, ST7735_BLUE);
             tft.setTextColor(ST7735_WHITE, ST7735_BLUE);
             tft.setCursor(8, y);
@@ -122,11 +148,11 @@ void display_game_menu() {
             tft.print("  ");
         }
         
-        tft.print(gameOptions[i]);
+        tft.print(gameOptions[gameIndex]);
     }
     
     // Fill remaining screen area with black
-    int remainingY = 45 + (GAME_COUNT * 22);
+    int remainingY = 45 + (VISIBLE_GAME_ITEMS * 22);
     if (remainingY < height) {
         tft.fillRect(0, remainingY, width, height - remainingY, ST7735_BLACK);
     }
@@ -136,17 +162,37 @@ void display_game_menu() {
 void update_game_menu_selection() {
     int width = tft.width();
     
-    // Redraw all game options with new selection
+    // Calculate scroll bounds
+    int maxScroll = max(0, GAME_COUNT - VISIBLE_GAME_ITEMS);
+    int oldScrollOffset = gameScrollOffset;
+    
+    // Auto-scroll to keep selected item visible
+    if (selectedGame < gameScrollOffset) {
+        gameScrollOffset = selectedGame;
+    } else if (selectedGame >= gameScrollOffset + VISIBLE_GAME_ITEMS) {
+        gameScrollOffset = selectedGame - VISIBLE_GAME_ITEMS + 1;
+    }
+    
+    // If scrolling occurred, just shift the menu items without full redraw
+    if (oldScrollOffset != gameScrollOffset) {
+        // Clear menu area only
+        tft.fillRect(0, 42, width, VISIBLE_GAME_ITEMS * 22 + 6, ST7735_BLACK);
+    }
+    
+    // Draw visible game items
     tft.setTextSize(1);
     
-    for (int i = 0; i < GAME_COUNT; i++) {
+    for (int i = 0; i < VISIBLE_GAME_ITEMS && (i + gameScrollOffset) < GAME_COUNT; i++) {
+        int gameIndex = i + gameScrollOffset;
         int y = 45 + (i * 22);
         
-        // Clear the line area
-        tft.fillRect(2, y-2, width-4, 18, ST7735_BLACK);
+        // Clear the line area only if no scrolling occurred
+        if (oldScrollOffset == gameScrollOffset) {
+            tft.fillRect(2, y-2, width-4, 18, ST7735_BLACK);
+        }
         
         // Highlight selected option
-        if (i == selectedGame) {
+        if (gameIndex == selectedGame) {
             tft.fillRect(2, y-2, width-4, 18, ST7735_BLUE);
             tft.setTextColor(ST7735_WHITE, ST7735_BLUE);
             tft.setCursor(8, y);
@@ -157,7 +203,7 @@ void update_game_menu_selection() {
             tft.print("  ");
         }
         
-        tft.print(gameOptions[i]);
+        tft.print(gameOptions[gameIndex]);
     }
 }
 
@@ -165,17 +211,37 @@ void update_game_menu_selection() {
 void update_menu_selection() {
     int width = tft.width();
     
-    // Redraw all menu options with new selection
+    // Calculate scroll bounds
+    int maxScroll = max(0, MENU_COUNT - VISIBLE_MENU_ITEMS);
+    int oldScrollOffset = menuScrollOffset;
+    
+    // Auto-scroll to keep selected item visible
+    if (selectedOption < menuScrollOffset) {
+        menuScrollOffset = selectedOption;
+    } else if (selectedOption >= menuScrollOffset + VISIBLE_MENU_ITEMS) {
+        menuScrollOffset = selectedOption - VISIBLE_MENU_ITEMS + 1;
+    }
+    
+    // If scrolling occurred, just shift the menu items without full redraw
+    if (oldScrollOffset != menuScrollOffset) {
+        // Clear menu area only
+        tft.fillRect(0, 42, width, VISIBLE_MENU_ITEMS * 22 + 6, ST7735_BLACK);
+    }
+    
+    // Draw visible menu items
     tft.setTextSize(1);
     
-    for (int i = 0; i < MENU_COUNT; i++) {
+    for (int i = 0; i < VISIBLE_MENU_ITEMS && (i + menuScrollOffset) < MENU_COUNT; i++) {
+        int menuIndex = i + menuScrollOffset;
         int y = 45 + (i * 22);
         
-        // Clear the line area
-        tft.fillRect(2, y-2, width-4, 18, ST7735_BLACK);
+        // Clear the line area only if no scrolling occurred
+        if (oldScrollOffset == menuScrollOffset) {
+            tft.fillRect(2, y-2, width-4, 18, ST7735_BLACK);
+        }
         
         // Highlight selected option
-        if (i == selectedOption) {
+        if (menuIndex == selectedOption) {
             tft.fillRect(2, y-2, width-4, 18, ST7735_BLUE);
             tft.setTextColor(ST7735_WHITE, ST7735_BLUE);
             tft.setCursor(8, y);
@@ -186,7 +252,7 @@ void update_menu_selection() {
             tft.print("  ");
         }
         
-        tft.print(menuOptions[i]);
+        tft.print(menuOptions[menuIndex]);
     }
 }
 

@@ -3,7 +3,7 @@
 #include <ArduinoJson.h>
 
 // --- PRIVATE credentials & user preferences -----  
-const char* geminiApiKey = "AIzaSyDGLIPiuzORNrIi-qyuW5N26ri9gUYo0DI";   // Replace with your Gemini API key
+const char* geminiApiKey = "AIzaSyBWoJX5FMsvhF2BtoerYESHYsk1fhPger0";   // Replace with your Gemini API key
 const char* geminiMaxTokens = "200";       
 
 // ----------------------------------------------------------------------------------------------------------------------------
@@ -19,9 +19,10 @@ String Gemini_ProcessText(String input_text)
   HTTPClient https;
   
   // Begin HTTPS connection
-  if (https.begin("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + String(geminiApiKey))) {
+  if (https.begin("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent")) {
     
     https.addHeader("Content-Type", "application/json");
+    https.addHeader("X-goog-api-key", String(geminiApiKey));
     
     // Prepare simple JSON payload
     String payload = String("{\"contents\": [{\"parts\":[{\"text\":\"" + input_text + "\"}]}],\"generationConfig\": {\"maxOutputTokens\": " + String(geminiMaxTokens) + "}}");

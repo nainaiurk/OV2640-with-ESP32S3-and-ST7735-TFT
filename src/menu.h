@@ -49,6 +49,12 @@ enum GameOption {
 extern AppMode currentMode;
 extern MenuOption selectedOption;
 extern GameOption selectedGame;
+extern int menuScrollOffset;    // New variable for scrolling
+extern int gameScrollOffset;    // New variable for game menu scrolling
+
+// Display constants
+#define VISIBLE_MENU_ITEMS 5    // Number of menu items visible at once
+#define VISIBLE_GAME_ITEMS 5    // Number of game items visible at once
 
 // Function declarations
 void menu_init();

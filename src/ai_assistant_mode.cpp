@@ -16,8 +16,8 @@ static int animation_frame = 0;
 static String current_transcription = "";
 static String current_ai_response = "";
 
-const char* WIFI_SSID = "(Nai)^2U";           // Update with your WiFi SSID
-const char* WIFI_PASSWORD = "12345678";   // Update with your WiFi password
+const char* WIFI_SSID = "SUST WiFi";           // Update with your WiFi SSID
+const char* WIFI_PASSWORD = "SUST10s10";   // Update with your WiFi password
 const char* DEEPGRAM_API_KEY = "85e33bfe537cc2e30ac77a649142dc60e7b3b89a";  // Update with your Deepgram API key
 const char* GEMINI_API_KEY = "AIzaSyDGLIPiuzORNrIi-qyuW5N26ri9gUYo0DI"; 
 const char* AUDIO_FILE = "/voice_recording.wav";  // Audio file path
